@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maritime Institutes Map</title>
+    
+    <!-- Leaflet & MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <style>
+        * { box-sizing: border-box; }
+        body, html { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-color: #f1f5f9;
+        }
+
+        /* 1. Portal Login Screen */
+        #mainLockScreen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 58, 138, 0.88) 100%),
+                        url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+        }
+        .main-login-box {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(16px);
+            padding: 36px 32px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+            width: 90%;
+            max-width: 380px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .logo-login {
+            max-width: 140px;
+            max-height: 90px;
+            object-fit: contain;
+            margin-bottom: 12px;
+        }
+        .main-login-box h2 {
+            margin: 0 0 4px 0;
+            color: #0f172a;
+            font-size: 19px;
+            font-weight: 700;
+        }
+        .main-login-box p {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 22px;
+        }
+
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .password-wrapper input {
+            width: 100%;
+            padding-right: 38px !important;
+        }
+        .btn-toggle-pass {
+            position: absolute;
+            right: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            color: #64748b;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-toggle-pass:hover { color: #0f172a; }
+        
+        /* 2. Full-Screen Map Container */
+        #mainApp {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #map { 
+            width: 100%; 
+            height: 100%; 
+            z-index: 1;
+        }
+
+        /* Compact & Professional Topbar */
+        .professional-topbar {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: #ffffff;
+            padding: 6px 12px;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.15), 0 2px 6px -1px rgba(15, 23, 42, 0.08);
+            border: 1px solid #e2e8f0;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            max-width: calc(100% - 28px);
+            flex-wrap: wrap;
+        }
+
+        .brand-section {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 10px;
+            border-right: 1px solid #e2e8f0;
+        }
+        .logo-map {
+            height: 46px;
+            width: auto;
+            object-fit: contain;
+            display: block;
+        }
+        .brand-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.2px;
+            white-space: nowrap;
+        }
+
+        /* Controls Section */
+        .controls-section {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .search-container {
+            position: relative;
+            width: 210px;
+            display: flex;
+            align-items: center;
+        }
+        .search-container input[type="text"] {
+            width: 100%;
+            padding: 6px 26px 6px 28px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12.5px;
+            color: #0f172a;
+            background-color: #f8fafc;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .search-container input[type="text"]:focus {
+            background-color: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+        .search-icon-inside {
+            position: absolute;
+            left: 8px;
+            font-size: 12px;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        .btn-clear-search {
+            position: absolute;
+            right: 6px;
+            background: none;
+            border: none;
+            font-size: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+            display: none;
+            padding: 2px 4px;
+            border-radius: 50%;
+            line-height: 1;
+        }
+        .btn-clear-search:hover {
+            color: #0f172a;
+            background-color: #e2e8f0;
+        }
+
+        .autocomplete-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-top: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 10000;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 12px;
+            text-align: left;
+        }
+        .autocomplete-item:hover {
+            background-color: #f8fafc;
+            color: #1e40af;
+            font-weight: 600;
+        }
+        .autocomplete-item span {
+            display: block;
+            font-size: 10.5px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .filter-select {
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #0f172a;
+            background-color: #f8fafc;
+            cursor: pointer;
+            outline: none;
+        }
+        .filter-select:focus {
+            border-color: #2563eb;
+        }
+        
+        .result-badge {
+            font-size: 11px;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        /* Settings Menu Action */
+        .menu-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-menu-trigger {
+            background-color: #0f172a;
+            color: #ffffff;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-menu-trigger:hover {
+            background-color: #1e293b;
+        }
+        .menu-dropdown {
+            position: absolute;
+            top: 125%;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 155px;
+            display: none;
+            overflow: hidden;
+            z-index: 10001;
+        }
+        .menu-dropdown button {
+            width: 100%;
+            padding: 9px 12px;
+            border: none;
+            background: transparent;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.15s;
+        }
+        .menu-dropdown button:hover { background-color: #f8fafc; }
+        .menu-dropdown button.btn-menu-admin { color: #d97706; border-bottom: 1px solid #f1f5f9; }
+        .menu-dropdown button.btn-menu-logout { color: #dc2626; }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 99999;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            overflow-y: auto;
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 3% auto;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 750px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid #e2e8f0;
+        }
+        .modal-login-content {
+            max-width: 380px;
+            margin: 10% auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        .modal-header h3 { margin: 0; color: #0f172a; font-size: 17px; font-weight: 700; }
+        .close-btn { font-size: 20px; cursor: pointer; border: none; background: none; font-weight: bold; color: #64748b; }
+        .close-btn:hover { color: #0f172a; }
+        
+        .form-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+        .btn-lookup {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+        .btn-lookup:hover { background-color: #1d4ed8; }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-save {
+            background-color: #16a34a;
+            color: white;
+            border: none;
+            padding: 9px;
+            border-radius: 6px;
+            flex: 1;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .btn-save:hover { background-color: #15803d; }
+        .btn-reset-form {
+            background-color: #64748b;
+            color: white;
+            border: none;
+            padding: 9px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            display: none;
+        }
+        .btn-logout {
+            background-color: #dc2626;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-logout:hover { background-color: #b91c1c; }
+
+        /* Admin Management Table */
+        .admin-list-wrapper {
+            margin-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .admin-table th, .admin-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 10px;
+            text-align: left;
+        }
+        .admin-table th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+        }
+        .action-btn-group {
+            display: flex;
+            gap: 5px;
+        }
+        .action-btn-edit {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .action-btn-delete {
+            background-color: #dc2626;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-file {
+            display: block;
+            margin-top: 8px;
+            padding: 6px 12px;
+            background-color: #0f172a;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .btn-file:hover { background-color: #1e293b; }
+    </style>
+</head>
+<body>
+
+<!-- 1. PORTAL ACCESS LOCK SCREEN -->
+<div id="mainLockScreen">
+    <div class="main-login-box">
+        <img src="https://lh3.googleusercontent.com/d/1jTsJg6Z-NnXESH1sqJ125rh2eaLniv_0" alt="JLM Maritime Logo" class="logo-login" onerror="this.style.display='none'">
+        <h2>Maritime Institutes Map</h2>
+        <p>Please log in</p>
+        <form onsubmit="verifyPortalAccess(event)">
+            <div class="form-group">
+                <label>User ID:</label>
+                <input type="text" id="portal_id" required placeholder="Enter User ID">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <div class="password-wrapper">
+                    <input type="password" id="portal_pass" required placeholder="Enter Password">
+                    <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('portal_pass', this)" title="Toggle password visibility">👁️</button>
+                </div>
+            </div>
+            <div id="portal_error" style="color: #dc2626; font-size: 12px; margin-bottom: 12px; display: none;">Invalid User ID or Password!</div>
+            <button type="submit" class="btn-save" style="width: 100%; background-color: #0f172a;">Log In to Map</button>
+        </form>
+    </div>
+</div>
+
+<!-- 2. FULL-SCREEN MAP APPLICATION -->
+<div id="mainApp">
+    <div class="professional-topbar">
+        <div class="brand-section">
+            <img src="https://lh3.googleusercontent.com/d/1jTsJg6Z-NnXESH1sqJ125rh2eaLniv_0" alt="JLM Logo" class="logo-map" onerror="this.style.display='none'">
+            <span class="brand-title">Maritime Institutes Map</span>
+        </div>
+
+        <div class="controls-section">
+            <div class="search-container">
+                <span class="search-icon-inside">🔍</span>
+                <input type="text" id="search" placeholder="Search institute or city..." oninput="filterInstitutes()" autocomplete="off">
+                <button type="button" id="btnClearSearch" class="btn-clear-search" onclick="clearSearch()" title="Clear Search">✕</button>
+                <div id="autocompleteList" class="autocomplete-list"></div>
+            </div>
+
+            <select id="stateFilter" class="filter-select" onchange="filterInstitutes()">
+                <option value="">All Regions</option>
+                <option value="Johor">Johor</option>
+                <option value="Kedah">Kedah</option>
+                <option value="Labuan">Labuan</option>
+                <option value="Melaka">Melaka</option>
+                <option value="Negeri Sembilan">Negeri Sembilan</option>
+                <option value="Pahang">Pahang</option>
+                <option value="Penang">Penang</option>
+                <option value="Perak">Perak</option>
+                <option value="Perlis">Perlis</option>
+                <option value="Sabah">Sabah</option>
+                <option value="Sarawak">Sarawak</option>
+                <option value="Selangor">Selangor</option>
+                <option value="Terengganu">Terengganu</option>
+            </select>
+
+            <div id="resultCount" class="result-badge">33 Institutes</div>
+
+            <div class="menu-wrapper">
+                <button class="btn-menu-trigger" onclick="toggleMenuDropdown(event)" title="Settings & Account">⚙️</button>
+                <div id="menuDropdown" class="menu-dropdown">
+                    <button class="btn-menu-admin" onclick="accessAdminPanel(); closeMenuDropdown();">🔒 Admin Panel</button>
+                    <button class="btn-menu-logout" onclick="logoutPortal(); closeMenuDropdown();">🚪 Log Out</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+</div>
+
+<!-- Admin Login Modal -->
+<div id="modalLogin" class="modal">
+    <div class="modal-content modal-login-content">
+        <div class="modal-header">
+            <h3>🔒 Admin Verification</h3>
+            <button class="close-btn" onclick="closeLoginModal()">&times;</button>
+        </div>
+        <form onsubmit="verifyAdminLogin(event)">
+            <div class="form-group">
+                <label>Admin ID:</label>
+                <input type="text" id="login_id" required placeholder="Enter Admin ID">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <div class="password-wrapper">
+                    <input type="password" id="login_pass" required placeholder="Enter Password">
+                    <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('login_pass', this)" title="Toggle password visibility">👁️</button>
+                </div>
+            </div>
+            <div id="login_error" style="color: #dc2626; font-size: 12px; margin-bottom: 10px; display: none;">Access denied! Admin credentials required.</div>
+            <div class="form-actions">
+                <button type="submit" class="btn-save" style="background-color: #0f172a;">Access Admin</button>
+                <button type="button" class="btn-save" style="background-color: #64748b;" onclick="closeLoginModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Admin Management Modal -->
+<div id="adminModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⚙️ Admin Management Panel</h3>
+            <div>
+                <button class="btn-logout" onclick="logoutAdminSession()">Close Admin Session</button>
+                <button class="close-btn" style="margin-left: 10px;" onclick="closeAdminModal()">&times;</button>
+            </div>
+        </div>
+        
+        <!-- Section 1: User Management -->
+        <div class="form-box" style="background: #eff6ff; border-color: #bfdbfe;">
+            <h4 style="margin: 0 0 10px 0; color: #1e40af;">👤 Register New User / Admin Account</h4>
+            <form onsubmit="registerNewUser(event)">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>User ID:</label>
+                        <input type="text" id="new_user_id" required placeholder="e.g. Officer123">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>Password:</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="new_user_pass" required placeholder="Password">
+                            <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('new_user_pass', this)" title="Toggle password visibility">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 120px;">
+                        <label>Role:</label>
+                        <select id="new_user_role">
+                            <option value="user">User (Map View Only)</option>
+                            <option value="admin">Admin (Full Control)</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn-save" style="margin-top: 5px; padding: 8px;">Register User</button>
+            </form>
+
+            <div style="margin-top: 15px;">
+                <label style="font-size: 12px; font-weight: 600; color: #334155;">Registered System Accounts:</label>
+                <div style="max-height: 120px; overflow-y: auto; margin-top: 5px;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Password</th>
+                                <th>Role</th>
+                                <th style="width: 70px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Add / Edit Location Form -->
+        <div class="form-box">
+            <h4 id="formTitle" style="margin: 0 0 12px 0; color: #0f172a;">Add New Institute / Location</h4>
+            <form id="formLocation" onsubmit="saveLocationForm(event)">
+                <input type="hidden" id="edit_id" value="">
+                
+                <div class="form-group">
+                    <label>Institute / Center Name:</label>
+                    <input type="text" id="name" required placeholder="e.g. Maritime Academy XYZ">
+                </div>
+                <div class="form-group">
+                    <label>Full Physical Address:</label>
+                    <input type="text" id="address" required placeholder="e.g. Jalan Pelabuhan, 42000 Pelabuhan Klang, Selangor">
+                    <button type="button" class="btn-lookup" onclick="lookupAddressCoordinates()">🔍 Auto-Lookup Coordinates from Address</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Latitude:</label>
+                        <input type="number" step="any" id="lat" required placeholder="3.0000">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Longitude:</label>
+                        <input type="number" step="any" id="lng" required placeholder="101.5000">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Document / File Link (URL):</label>
+                    <input type="url" id="file_link" placeholder="https://..." value="https://www.google.com">
+                </div>
+                <div class="form-group">
+                    <label>Pin Color:</label>
+                    <select id="pin_color">
+                        <option value="blue">Blue (Biru)</option>
+                        <option value="red">Red (Merah)</option>
+                        <option value="orange">Orange / Jingga / Oren</option>
+                        <option value="purple">Purple (Ungu)</option>
+                        <option value="yellow">Yellow (Kuning)</option>
+                        <option value="cream">Cream (Krim)</option>
+                        <option value="silver">Silver / Grey (Perak / Kelabu)</option>
+                        <option value="green">Green (Hijau)</option>
+                        <option value="white">White (Putih)</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" id="btnSubmitForm" class="btn-save">Save Location</button>
+                    <button type="button" id="btnCancelEdit" class="btn-reset-form" onclick="resetLocationForm()">Cancel Edit</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Section 3: Manage Registered Institutes -->
+        <div class="admin-list-wrapper">
+            <h4 style="margin: 0 0 8px 0; color: #334155;">Manage & Edit Registered Institutes</h4>
+            <div style="max-height: 240px; overflow-y: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Institute Name</th>
+                            <th>Pin Color</th>
+                            <th style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+    // 1. USER & AUTHENTICATION MANAGEMENT
+    var defaultUsers = [
+        { id: "Azmanlee", pass: "Jemang29", role: "admin" }
+    ];
+
+    var userList = JSON.parse(localStorage.getItem('jlm_maritime_users')) || defaultUsers;
+    var isAdminLoggedIn = false;
+
+    function saveUsersToLocalStorage() {
+        localStorage.setItem('jlm_maritime_users', JSON.stringify(userList));
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        var input = document.getElementById(inputId);
+        if (input.type === "password") {
+            input.type = "text";
+            btn.innerText = "🙈";
+        } else {
+            input.type = "password";
+            btn.innerText = "👁️";
+        }
+    }
+
+    function verifyPortalAccess(e) {
+        e.preventDefault();
+        var inputId = document.getElementById('portal_id').value.trim();
+        var inputPass = document.getElementById('portal_pass').value.trim();
+
+        var validUser = userList.find(function(u) {
+            return u.id === inputId && u.pass === inputPass;
+        });
+
+        if (validUser) {
+            sessionStorage.setItem('portal_auth', 'true');
+            document.getElementById('mainLockScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            map.invalidateSize();
+            renderAllMarkers();
+        } else {
+            document.getElementById('portal_error').style.display = 'block';
+        }
+    }
+
+    function logoutPortal() {
+        sessionStorage.removeItem('portal_auth');
+        isAdminLoggedIn = false;
+        location.reload();
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+        if (sessionStorage.getItem('portal_auth') === 'true') {
+            document.getElementById('mainLockScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            setTimeout(function() {
+                map.invalidateSize();
+                renderAllMarkers();
+            }, 200);
+        }
+    });
+
+    function toggleMenuDropdown(e) {
+        e.stopPropagation();
+        var dropdown = document.getElementById('menuDropdown');
+        dropdown.style.display = (dropdown.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function closeMenuDropdown() {
+        document.getElementById('menuDropdown').style.display = 'none';
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.menu-wrapper')) {
+            closeMenuDropdown();
+        }
+    });
+
+    // 2. DEFAULT HIGH-ACCURACY MARITIME INSTITUTE DATA
+    var defaultData = [
+        { id: "inst_1", nama: "Akademi Laut Malaysia (ALAM)", alamat: "Kuala Sungai Baru, 78200 Melaka", lat: 2.3556, lng: 102.0492, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_2", nama: "AKADEMI MARITIM PENJANA ILMU SDN. BHD.", alamat: "141 TKT 1, Medan KIKIK 1, Taman Inderawasih, 13600 Perai, Pulau Pinang", lat: 5.3880, lng: 100.3830, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_3", nama: "CENTRAL OF MARITIME EXCELLENCE SDN. BHD (CME)", alamat: "No. 22, Lorong Batu Nilam 3A, Bandar Bukit Tinggi, 41200 Klang, Selangor", lat: 3.0073, lng: 101.4428, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_4", nama: "INNATECH SDN. BHD. (INNATECH)", alamat: "Lot 62, O&G SEC Lazenda Warehouse, Jalan RanchaRancha, 87000 W.P. Labuan", lat: 5.2530, lng: 115.2415, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_5", nama: "NICHE MASTERPIECE SDN. BHD. (META)", alamat: "No. 30, Jalan SM 1C/13, Fasa 1C4, 32040 Seri Manjung, Perak Darul Ridzuan", lat: 4.1950, lng: 100.6650, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_6", nama: "NETHERLANDS MARITIME UNIVERSITY COLLEGE (NMUC)", alamat: "Level 11-14, Kotaraya Office Tower, Galleria @ Kotaraya, Jalan Abdullah Ibrahim, 80000 Johor Bahru, Johor Darul Takzim", lat: 1.4604, lng: 103.7638, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_7", nama: "PELITA AKADEMI SDN BHD (PELITA KKB)", alamat: "No. 38A, Jalan Kelah 2, Taman Perniagaan Kelah, 44300 Batang Kali, Selangor Darul Ehsan", lat: 3.4678, lng: 101.6432, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_8", nama: "PELITA MASLAUT (SABAH) SDN. BHD.", alamat: "Lot No. 12 & 13 (Blok B) 2nd & 3rd Floor, Lorong Plaza Utama 3, Alamesra, 88400 Kota Kinabalu, Sabah", lat: 6.0371, lng: 116.1262, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_9", nama: "PELITA MASLAUT SDN. BHD. (CAWANGAN MIRI)", alamat: "Lot 1515 & 1516, Block 1 M.C.L.D, Lutong Commercial Centre, Lutong, 98000 Miri, Sarawak", lat: 4.4695, lng: 113.9961, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_10", nama: "PELITA MASLAUT SDN. BHD. (SIBU)", alamat: "No. 6, 1st Floor, Lorong Chew Siik Hiong 7, Off Jalan Mahsuri, 96000 Sibu, Sarawak", lat: 2.2982, lng: 111.8329, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_11", nama: "PERMATA MARITIME TRAINING CENTRE SDN. BHD.", alamat: "1st Floor, Lot 7772, No. 184, Assyakirin Commerce Square, Jalan Sultan Iskandar, 97000 Bintulu, Sarawak", lat: 3.1895, lng: 113.0487, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_12", nama: "PLOMOGROUP SDN. BHD.", alamat: "No. 15, Jalan Samudera 10/8C, Seksyen 10, Laguna Park, 42920 Pelabuhan Klang, Selangor", lat: 2.9644, lng: 101.3204, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_13", nama: "POLITEKNIK UNGKU OMAR (PUO)", alamat: "Jalan Raja Musa Mahadi, 31400 Ipoh, Perak", lat: 4.5886, lng: 101.1219, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_14", nama: "POLARIS MARITIME TRAINING ACADEMY SDN. BHD.", alamat: "No. 72B & 71-72 C, Lebuhraya Darul Aman, 05100 Alor Setar, Kedah Darul Aman", lat: 6.1362, lng: 100.3695, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_15", nama: "PUSAT LATIHAN PELAUT DAGANG (M) SDN. BHD.", alamat: "Lot 81, 1st Floor, Block I, Asia City, 88863 Kota Kinabalu, Sabah", lat: 5.9754, lng: 116.0716, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_16", nama: "RANACO MARINE SDN. BHD.", alamat: "PT 4568, Jalan Bengkel I, Kawasan Perindustrian Jakar II, 24000 Kemaman, Terengganu", lat: 4.2185, lng: 103.4112, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_17", nama: "SARAWAK MARITIME ACADEMY SDN. BHD. (SMA)", alamat: "No. 2, Upper Lanang Road, 96000 Sibu, Sarawak", lat: 2.2618, lng: 111.8396, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_18", nama: "SASTRA MARITIME ACADEMY (EM) SDN. BHD.", alamat: "No. 1, 1st Floor, Lorong Pahlawan 7E, Jalan Pahlawan, 96000 Sibu, Sarawak", lat: 2.2965, lng: 111.8483, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_19", nama: "SEALESTIAL MARINE SEAFARER TRAINING CENTRE SDN BHD (SEAMASTER)", alamat: "D-03-06, Blok D, Aeropod Commercial Centre Square, Jalan Kepayan, 88100 Kota Kinabalu, Sabah", lat: 5.9555, lng: 116.0594, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_20", nama: "Sri Bima Training Centre Sdn Bhd (SMTC)", alamat: "Lot 102, Mile 1, Kuala Baram Road, P.O.Box 106, 98107 Miri, Sarawak", lat: 4.5772, lng: 114.0048, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_21", nama: "CENTRAL TECH RESOURCES SDN. BHD.", alamat: "A31, Tingkat 1, Lorong IM 5/2, Jalan Persiaran Sultan Abu Bakar, Indera Mahkota, 25200 Kuantan, Pahang", lat: 3.8234, lng: 103.2982, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_22", nama: "SAC MARITIME ACADEMY (SACMA)", alamat: "No. 1, Pusat Perdagangan Seri Delima, 73000 Tampin, Negeri Sembilan", lat: 2.4642, lng: 102.2289, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_23", nama: "UNIVERSITI KUALA LUMPUR INSTITUTE OF MARINE ENGINEERING TECHNOLOGY (UNIKL-MIMET)", alamat: "Dataran Industri Teknologi Kejuruteraan Bandar Teknologi Maritim, Jalan Pantai Remis, 32200 Lumut, Perak", lat: 4.2405, lng: 100.6486, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_24", nama: "UNIVERSITI MALAYSIA TERENGGANU (UMT)", alamat: "Maritime Studies & Marine Science Faculty, Mengabang Telipot, 21030 Kuala Nerus, Terengganu", lat: 5.4087, lng: 103.0886, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_25", nama: "INSTITUT KEMAHIRAN MARA BESERI", alamat: "KM. 14, JALAN KAKI BUKIT, 02400, BESERI, PERLIS", lat: 6.5492, lng: 100.2248, pautan_fail: "https://drive.google.com/file/d/1OiksRSLhAZ1AbKrFggH66TLOFop-6A0U/view?usp=drivesdk", color: "blue" },
+        { id: "inst_26", nama: "STAR MARINE ACADEMY (STMA)", alamat: "No. 12A, Jalan Putra Bistari 2/1G, Putra Heights, 47650 Subang Jaya, Selangor", lat: 3.0035, lng: 101.5724, pautan_fail: "https://drive.google.com/file/d/119YXoYEHQa3CbHPUE-J3l7cKeSgjwQSm/view?usp=drivesdk", color: "blue" },
+        { id: "inst_27", nama: "TCCS MARINE SDN. BHD.", alamat: "No. 17, Tingkat 1, Lorong Wawasan 10B, 96000 Sibu, Sarawak", lat: 2.3113, lng: 111.8378, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_28", nama: "ORION MARITIME ACADEMY SDN. BHD.", alamat: "15A, Jalan Bayu Tinggi 2/KS 6, Batu Unjur, 41200 Klang, Selangor", lat: 3.0116, lng: 101.4339, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_29", nama: "AKADEMI MARITIM SULTAN AHMAD SHAH (AMSAS)", alamat: "Agensi Penguatkuasaan Maritim Malaysia, KDN Sungai Ular, Gebeng 26100 Kuantan, Pahang", lat: 4.0537, lng: 103.3916, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_30", nama: "BORNEO MARITIME & CATERING ACADEMY", alamat: "Lot 10631, Level 1 Blok 5, Airport Road, Airport Commercial Centre, 98000 Miri, Sarawak", lat: 4.3314, lng: 113.9912, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_31", nama: "MYTVET EDUCATION GROUP SDN. BHD.", alamat: "11-1, Jalan W/P 1, Taman Warisan Putra, Jenderam Hilir, 43800 Dengkil, Selangor", lat: 2.8711, lng: 101.7186, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_32", nama: "RANACO EDUCATION AND TRAINING INSTITUTE SDN. BHD.", alamat: "PT 4568, Jalan Bengkel I, Kawasan Perindustrian Jakar II, 24000 Kemaman, Terengganu", lat: 4.2185, lng: 103.4112, pautan_fail: "https://www.google.com", color: "blue" },
+        { id: "inst_33", nama: "SERBA UNIK SDN. BHD.", alamat: "Lot 6079, Pusat Bandar Phase 5, Bandar Baru Permyjaya, Block 11, KBLD, 98000 Miri, Sarawak", lat: 4.4820, lng: 114.0326, pautan_fail: "https://www.google.com", color: "blue" }
+    ];
+
+    var institutesList = JSON.parse(localStorage.getItem('jlm_maritime_data')) || defaultData;
+
+    function makeSvgPin(colorHex, strokeHex) {
+        strokeHex = strokeHex || '#1e293b';
+        var svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 42" width="28" height="38">' +
+            '<defs>' +
+            '<filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">' +
+            '<feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#0f172a" flood-opacity="0.3"/>' +
+            '</filter>' +
+            '</defs>' +
+            '<path d="M16 1C8.268 1 2 7.268 2 15c0 10.5 14 26 14 26s14-15.5 14-26c0-7.732-6.268-14-14-14z" ' +
+            'fill="' + colorHex + '" stroke="' + strokeHex + '" stroke-width="1.6" filter="url(#dropShadow)"/>' +
+            '<circle cx="16" cy="15" r="4.5" fill="#ffffff" stroke="#1e293b" stroke-width="1"/>' +
+            '</svg>';
+        return L.divIcon({
+            className: 'custom-svg-pin',
+            html: svgStr,
+            iconSize: [28, 38],
+            iconAnchor: [14, 38],
+            popupAnchor: [0, -34]
+        });
+    }
+
+    var icons = {
+        blue: makeSvgPin('#2563eb', '#1e40af'),
+        red: makeSvgPin('#dc2626', '#991b1b'),
+        orange: makeSvgPin('#ea580c', '#9a3412'),
+        purple: makeSvgPin('#9333ea', '#6b21a8'),
+        yellow: makeSvgPin('#eab308', '#854d0e'),
+        cream: makeSvgPin('#fef08a', '#713f12'),
+        silver: makeSvgPin('#94a3b8', '#475569'),
+        grey: makeSvgPin('#64748b', '#334155'),
+        green: makeSvgPin('#16a34a', '#166534'),
+        white: makeSvgPin('#ffffff', '#64748b')
+    };
+
+    // Google Maps Tile Layers
+    var googleStreets = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '&copy; Google Maps'
+    });
+
+    var googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '&copy; Google Maps'
+    });
+
+    var googleTerrain = L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: '&copy; Google Maps'
+    });
+
+    var map = L.map('map', {
+        center: [4.5, 109.0],
+        zoom: 6,
+        layers: [googleStreets],
+        zoomControl: false
+    });
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    var baseMaps = {
+        "Google Streets": googleStreets,
+        "Google Hybrid Satellite": googleHybrid,
+        "Google Terrain": googleTerrain
+    };
+    L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
+
+    var clusterGroup = L.markerClusterGroup();
+    map.addLayer(clusterGroup);
+
+    var markerObjects = {};
+
+    function generatePopupHTML(inst) {
+        return "<b>" + inst.nama + "</b><br>" +
+            inst.alamat + "<br>" +
+            "<a href='" + inst.pautan_fail + "' target='_blank' class='btn-file'>Open Document / File</a>";
+    }
+
+    function renderAllMarkers() {
+        clusterGroup.clearLayers();
+        markerObjects = {};
+        var boundsArray = [];
+
+        institutesList.forEach(function(inst) {
+            var pinIcon = icons[inst.color] || icons.blue;
+            var marker = L.marker([inst.lat, inst.lng], { icon: pinIcon });
+            marker.bindPopup(generatePopupHTML(inst));
+            
+            clusterGroup.addLayer(marker);
+            markerObjects[inst.id] = marker;
+            boundsArray.push([inst.lat, inst.lng]);
+        });
+
+        if (boundsArray.length > 0) {
+            map.fitBounds(boundsArray, { padding: [60, 60] });
+        }
+        updateBadge(institutesList.length);
+    }
+
+    function saveToLocalStorage() {
+        localStorage.setItem('jlm_maritime_data', JSON.stringify(institutesList));
+    }
+
+    function updateBadge(count) {
+        document.getElementById('resultCount').innerText = count + " Institutes";
+    }
+
+    function lookupAddressCoordinates() {
+        var addr = document.getElementById('address').value.trim();
+        if (!addr) {
+            alert("Please enter a physical address first.");
+            return;
+        }
+
+        var url = "https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(addr + ", Malaysia");
+
+        fetch(url)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data && data.length > 0) {
+                    document.getElementById('lat').value = parseFloat(data[0].lat).toFixed(5);
+                    document.getElementById('lng').value = parseFloat(data[0].lon).toFixed(5);
+                    alert("Coordinates found: (" + data[0].lat + ", " + data[0].lon + ")");
+                } else {
+                    alert("Address not found automatically. Please check the address or enter coordinates manually.");
+                }
+            })
+            .catch(function(err) {
+                alert("Error searching address coordinates.");
+            });
+    }
+
+    function accessAdminPanel() {
+        if (isAdminLoggedIn) {
+            openAdminModal();
+        } else {
+            document.getElementById('modalLogin').style.display = 'block';
+            document.getElementById('login_error').style.display = 'none';
+        }
+    }
+
+    function closeLoginModal() {
+        document.getElementById('modalLogin').style.display = 'none';
+    }
+
+    function verifyAdminLogin(e) {
+        e.preventDefault();
+        var idInput = document.getElementById('login_id').value.trim();
+        var passInput = document.getElementById('login_pass').value.trim();
+
+        var adminUser = userList.find(function(u) {
+            return u.id === idInput && u.pass === passInput && u.role === 'admin';
+        });
+
+        if (adminUser) {
+            isAdminLoggedIn = true;
+            closeLoginModal();
+            openAdminModal();
+        } else {
+            document.getElementById('login_error').style.display = 'block';
+        }
+    }
+
+    function logoutAdminSession() {
+        isAdminLoggedIn = false;
+        closeAdminModal();
+        alert("Admin session closed.");
+    }
+
+    function openAdminModal(lat, lng) {
+        document.getElementById('adminModal').style.display = 'block';
+        if (lat && lng) {
+            document.getElementById('lat').value = lat.toFixed(5);
+            document.getElementById('lng').value = lng.toFixed(5);
+        }
+        refreshAdminTable();
+        refreshUserTable();
+    }
+
+    function closeAdminModal() {
+        document.getElementById('adminModal').style.display = 'none';
+        resetLocationForm();
+    }
+
+    // 3. USER MANAGEMENT (CRUD)
+    function refreshUserTable() {
+        var tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+
+        userList.forEach(function(user, index) {
+            var tr = document.createElement('tr');
+            var deleteBtn = (user.id === 'Azmanlee') ? '<span style="color:#64748b; font-weight:600;">Primary</span>' : '<button class="action-btn-delete" onclick="deleteUser(' + index + ')">Delete</button>';
+            tr.innerHTML = "<td><b>" + user.id + "</b></td>" +
+                "<td>" + user.pass + "</td>" +
+                "<td><span style='text-transform: capitalize; font-weight: 600; color:" + (user.role === 'admin' ? '#2563eb' : '#16a34a') + ";'>" + user.role + "</span></td>" +
+                "<td>" + deleteBtn + "</td>";
+            tbody.appendChild(tr);
+        });
+    }
+
+    function registerNewUser(e) {
+        e.preventDefault();
+        var idVal = document.getElementById('new_user_id').value.trim();
+        var passVal = document.getElementById('new_user_pass').value.trim();
+        var roleVal = document.getElementById('new_user_role').value;
+
+        var exists = userList.some(function(u) { return u.id.toLowerCase() === idVal.toLowerCase(); });
+        if (exists) {
+            alert("This User ID already exists. Please choose another ID.");
+            return;
+        }
+
+        userList.push({ id: idVal, pass: passVal, role: roleVal });
+        saveUsersToLocalStorage();
+        refreshUserTable();
+        document.getElementById('new_user_id').value = '';
+        document.getElementById('new_user_pass').value = '';
+        alert("New user account registered successfully!");
+    }
+
+    function deleteUser(index) {
+        if (confirm("Are you sure you want to delete this user account?")) {
+            userList.splice(index, 1);
+            saveUsersToLocalStorage();
+            refreshUserTable();
+        }
+    }
+
+    // 4. INSTITUTE MANAGEMENT (CRUD)
+    function refreshAdminTable() {
+        var tbody = document.getElementById('adminTableBody');
+        tbody.innerHTML = '';
+
+        institutesList.forEach(function(inst) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = "<td><b>" + inst.nama + "</b><br><span style='color:#64748b; font-size:11px;'>" + inst.alamat + "</span></td>" +
+                "<td>" +
+                    "<select onchange='changePinColorAdmin(\"" + inst.id + "\", this.value)'>" +
+                        "<option value='blue' " + (inst.color === 'blue' ? 'selected' : '') + ">Blue (Biru)</option>" +
+                        "<option value='red' " + (inst.color === 'red' ? 'selected' : '') + ">Red (Merah)</option>" +
+                        "<option value='orange' " + (inst.color === 'orange' ? 'selected' : '') + ">Orange / Jingga / Oren</option>" +
+                        "<option value='purple' " + (inst.color === 'purple' ? 'selected' : '') + ">Purple (Ungu)</option>" +
+                        "<option value='yellow' " + (inst.color === 'yellow' ? 'selected' : '') + ">Yellow (Kuning)</option>" +
+                        "<option value='cream' " + (inst.color === 'cream' ? 'selected' : '') + ">Cream (Krim)</option>" +
+                        "<option value='silver' " + (inst.color === 'silver' ? 'selected' : '') + ">Silver (Perak)</option>" +
+                        "<option value='green' " + (inst.color === 'green' ? 'selected' : '') + ">Green (Hijau)</option>" +
+                        "<option value='white' " + (inst.color === 'white' ? 'selected' : '') + ">White (Putih)</option>" +
+                    "</select>" +
+                "</td>" +
+                "<td>" +
+                    "<div class='action-btn-group'>" +
+                        "<button class='action-btn-edit' onclick='loadEditInstitute(\"" + inst.id + "\")'>Edit</button>" +
+                        "<button class='action-btn-delete' onclick='deleteLocationAdmin(\"" + inst.id + "\")'>Delete</button>" +
+                    "</div>" +
+                "</td>";
+            tbody.appendChild(tr);
+        });
+    }
+
+    function loadEditInstitute(id) {
+        var inst = institutesList.find(function(i) { return i.id === id; });
+        if (!inst) return;
+
+        document.getElementById('edit_id').value = inst.id;
+        document.getElementById('name').value = inst.nama;
+        document.getElementById('address').value = inst.alamat;
+        document.getElementById('lat').value = inst.lat;
+        document.getElementById('lng').value = inst.lng;
+        document.getElementById('file_link').value = inst.pautan_fail;
+        document.getElementById('pin_color').value = inst.color || 'blue';
+
+        document.getElementById('formTitle').innerText = "✏️ Edit Institute Information";
+        document.getElementById('btnSubmitForm').innerText = "Update & Save";
+        document.getElementById('btnCancelEdit').style.display = 'inline-block';
+
+        document.querySelector('#adminModal .modal-content').scrollTop = 0;
+    }
+
+    function resetLocationForm() {
+        document.getElementById('formLocation').reset();
+        document.getElementById('edit_id').value = "";
+        document.getElementById('formTitle').innerText = "Add New Institute / Location";
+        document.getElementById('btnSubmitForm').innerText = "Save Location";
+        document.getElementById('btnCancelEdit').style.display = 'none';
+    }
+
+    function saveLocationForm(e) {
+        e.preventDefault();
+        
+        var editId = document.getElementById('edit_id').value;
+        var nameVal = document.getElementById('name').value;
+        var addressVal = document.getElementById('address').value;
+        var latVal = parseFloat(document.getElementById('lat').value);
+        var lngVal = parseFloat(document.getElementById('lng').value);
+        var fileLinkVal = document.getElementById('file_link').value || "https://www.google.com";
+        var colorVal = document.getElementById('pin_color').value;
+
+        if (editId) {
+            var inst = institutesList.find(function(i) { return i.id === editId; });
+            if (inst) {
+                inst.nama = nameVal;
+                inst.alamat = addressVal;
+                inst.lat = latVal;
+                inst.lng = lngVal;
+                inst.pautan_fail = fileLinkVal;
+                inst.color = colorVal;
+            }
+            alert("Institute details updated successfully!");
+        } else {
+            var newId = "inst_" + new Date().getTime();
+            var newData = {
+                id: newId,
+                nama: nameVal,
+                alamat: addressVal,
+                lat: latVal,
+                lng: lngVal,
+                pautan_fail: fileLinkVal,
+                color: colorVal
+            };
+            institutesList.push(newData);
+            alert("New institute added successfully!");
+        }
+
+        saveToLocalStorage();
+        renderAllMarkers();
+        resetLocationForm();
+        refreshAdminTable();
+    }
+
+    function changePinColorAdmin(id, newColor) {
+        var item = institutesList.find(function(i) { return i.id === id; });
+        if (item && icons[newColor]) {
+            item.color = newColor;
+            markerObjects[id].setIcon(icons[newColor]);
+            saveToLocalStorage();
+        }
+    }
+
+    function deleteLocationAdmin(id) {
+        if (confirm("Are you sure you want to delete this institute?")) {
+            institutesList = institutesList.filter(function(i) { return i.id !== id; });
+            saveToLocalStorage();
+            renderAllMarkers();
+            refreshAdminTable();
+            if (document.getElementById('edit_id').value === id) {
+                resetLocationForm();
+            }
+        }
+    }
+
+    // 5. SEARCH & STATE FILTER
+    function filterInstitutes() {
+        var searchInput = document.getElementById('search');
+        var keyword = searchInput.value.toLowerCase().trim();
+        var selectedState = document.getElementById('stateFilter').value.toLowerCase();
+        var autocompleteBox = document.getElementById('autocompleteList');
+        var clearBtn = document.getElementById('btnClearSearch');
+        
+        // Show or hide clear button
+        clearBtn.style.display = (searchInput.value.length > 0) ? 'block' : 'none';
+
+        clusterGroup.clearLayers();
+        autocompleteBox.innerHTML = '';
+        var matchCount = 0;
+        var matchingBounds = [];
+
+        var filteredData = institutesList.filter(function(inst) {
+            var matchesKeyword = !keyword || inst.nama.toLowerCase().includes(keyword) || inst.alamat.toLowerCase().includes(keyword);
+            var matchesState = !selectedState || inst.alamat.toLowerCase().includes(selectedState);
+            return matchesKeyword && matchesState;
+        });
+
+        filteredData.forEach(function(inst) {
+            clusterGroup.addLayer(markerObjects[inst.id]);
+            matchingBounds.push([inst.lat, inst.lng]);
+            matchCount++;
+
+            if (keyword.length > 0) {
+                var item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.innerHTML = inst.nama + '<span>' + inst.alamat + '</span>';
+                item.onclick = function() {
+                    selectInstitute(inst.id);
+                };
+                autocompleteBox.appendChild(item);
+            }
+        });
+
+        if (keyword.length > 0 && filteredData.length > 0) {
+            autocompleteBox.style.display = 'block';
+        } else {
+            autocompleteBox.style.display = 'none';
+        }
+
+        updateBadge(matchCount);
+
+        if (matchingBounds.length > 0 && (keyword || selectedState)) {
+            map.fitBounds(matchingBounds, { padding: [60, 60], maxZoom: 14 });
+        }
+    }
+
+    function clearSearch() {
+        var searchInput = document.getElementById('search');
+        searchInput.value = '';
+        document.getElementById('btnClearSearch').style.display = 'none';
+        document.getElementById('autocompleteList').style.display = 'none';
+        filterInstitutes();
+        map.setView([4.5, 109.0], 6);
+    }
+
+    function selectInstitute(id) {
+        var inst = institutesList.find(function(i) { return i.id === id; });
+        if (!inst) return;
+
+        document.getElementById('autocompleteList').style.display = 'none';
+        document.getElementById('search').value = inst.nama;
+        document.getElementById('btnClearSearch').style.display = 'block';
+
+        map.setView([inst.lat, inst.lng], 16);
+        setTimeout(function() {
+            var marker = markerObjects[id];
+            if (marker) {
+                clusterGroup.zoomToShowLayer(marker, function() {
+                    marker.openPopup();
+                });
+            }
+        }, 300);
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-container')) {
+            document.getElementById('autocompleteList').style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
