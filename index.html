@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maritime Institutes Map</title>
     
-    <!-- Leaflet & MarkerCluster CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
@@ -485,7 +484,6 @@
 </head>
 <body>
 
-<!-- 1. PORTAL ACCESS LOCK SCREEN -->
 <div id="mainLockScreen">
     <div class="main-login-box">
         <img src="https://lh3.googleusercontent.com/d/1jTsJg6Z-NnXESH1sqJ125rh2eaLniv_0" alt="JLM Maritime Logo" class="logo-login" onerror="this.style.display='none'">
@@ -509,7 +507,6 @@
     </div>
 </div>
 
-<!-- 2. FULL-SCREEN MAP APPLICATION -->
 <div id="mainApp">
     <div class="professional-topbar">
         <div class="brand-section">
@@ -557,12 +554,11 @@
     <div id="map"></div>
 </div>
 
-<!-- Admin Login Modal -->
 <div id="modalLogin" class="modal">
     <div class="modal-content modal-login-content">
         <div class="modal-header">
             <h3>🔒 Admin Verification</h3>
-            <button class="close-btn" onclick="closeLoginModal()">&times;</button>
+            <button class="close-btn" onclick="closeLoginModal()">×</button>
         </div>
         <form onsubmit="verifyAdminLogin(event)">
             <div class="form-group">
@@ -585,18 +581,16 @@
     </div>
 </div>
 
-<!-- Admin Management Modal -->
 <div id="adminModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h3>⚙️ Admin Management Panel</h3>
             <div>
                 <button class="btn-logout" onclick="logoutAdminSession()">Close Admin Session</button>
-                <button class="close-btn" style="margin-left: 10px;" onclick="closeAdminModal()">&times;</button>
+                <button class="close-btn" style="margin-left: 10px;" onclick="closeAdminModal()">×</button>
             </div>
         </div>
         
-        <!-- Section 1: User Management -->
         <div class="form-box" style="background: #eff6ff; border-color: #bfdbfe;">
             <h4 style="margin: 0 0 10px 0; color: #1e40af;">👤 Register New User / Admin Account</h4>
             <form onsubmit="registerNewUser(event)">
@@ -641,7 +635,6 @@
             </div>
         </div>
 
-        <!-- Section 2: Add / Edit Location Form -->
         <div class="form-box">
             <h4 id="formTitle" style="margin: 0 0 12px 0; color: #0f172a;">Add New Institute / Location</h4>
             <form id="formLocation" onsubmit="saveLocationForm(event)">
@@ -691,7 +684,6 @@
             </form>
         </div>
 
-        <!-- Section 3: Manage Registered Institutes -->
         <div class="admin-list-wrapper">
             <h4 style="margin: 0 0 8px 0; color: #334155;">Manage & Edit Registered Institutes</h4>
             <div style="max-height: 240px; overflow-y: auto;">
@@ -712,10 +704,30 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
+    // ==========================================
+    // KONFIGURASI FIREBASE ANDA
+    // ==========================================
+    var firebaseConfig = {
+        apiKey: "AIzaSyA8UK2ei0Y4vVe0dCBl0fJqy5ahat9QQYU",
+        authDomain: "maritime-map-282e9.firebaseapp.com",
+        databaseURL: "https://PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "maritime-map-282e9",
+        storageBucket: "maritime-map-282e9.firebasestorage.app",
+        messagingSenderId: "535206839360",
+        appId: "1:535206839360:web:c90e11798ddca4b5a04ba5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.database();
+    var institutesRef = db.ref('maritime_institutes');
+    var usersRef = db.ref('maritime_users');
+
     // 1. USER & AUTHENTICATION MANAGEMENT
     var defaultUsers = [
         { id: "Azmanlee", pass: "Jemang29", role: "admin" }
@@ -723,6 +735,20 @@
 
     var userList = JSON.parse(localStorage.getItem('jlm_maritime_users')) || defaultUsers;
     var isAdminLoggedIn = false;
+
+    // Sinkronisasi Pengguna secara Realtime dari Firebase
+    usersRef.on('value', function(snapshot) {
+        var data = snapshot.val();
+        if (data) {
+            userList = Object.keys(data).map(function(k) { return data[k]; });
+            saveUsersToLocalStorage();
+            refreshUserTable();
+        } else {
+            defaultUsers.forEach(function(u) {
+                usersRef.child(u.id).set(u);
+            });
+        }
+    });
 
     function saveUsersToLocalStorage() {
         localStorage.setItem('jlm_maritime_users', JSON.stringify(userList));
@@ -831,6 +857,21 @@
 
     var institutesList = JSON.parse(localStorage.getItem('jlm_maritime_data')) || defaultData;
 
+    // Sinkronisasi Data Institut secara Realtime dari Firebase
+    institutesRef.on('value', function(snapshot) {
+        var data = snapshot.val();
+        if (data) {
+            institutesList = Object.keys(data).map(function(k) { return data[k]; });
+            saveToLocalStorage();
+            renderAllMarkers();
+            refreshAdminTable();
+        } else {
+            defaultData.forEach(function(inst) {
+                institutesRef.child(inst.id).set(inst);
+            });
+        }
+    });
+
     function makeSvgPin(colorHex, strokeHex) {
         strokeHex = strokeHex || '#1e293b';
         var svgStr = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 42" width="28" height="38">' +
@@ -869,19 +910,19 @@
     var googleStreets = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '&copy; Google Maps'
+        attribution: '© Google Maps'
     });
 
     var googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '&copy; Google Maps'
+        attribution: '© Google Maps'
     });
 
     var googleTerrain = L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '&copy; Google Maps'
+        attribution: '© Google Maps'
     });
 
     var map = L.map('map', {
@@ -1045,9 +1086,14 @@
             return;
         }
 
-        userList.push({ id: idVal, pass: passVal, role: roleVal });
+        var newUser = { id: idVal, pass: passVal, role: roleVal };
+        userList.push(newUser);
         saveUsersToLocalStorage();
         refreshUserTable();
+
+        // Segerak ke Firebase
+        usersRef.child(idVal).set(newUser);
+
         document.getElementById('new_user_id').value = '';
         document.getElementById('new_user_pass').value = '';
         alert("New user account registered successfully!");
@@ -1055,9 +1101,13 @@
 
     function deleteUser(index) {
         if (confirm("Are you sure you want to delete this user account?")) {
+            var deletedUserId = userList[index].id;
             userList.splice(index, 1);
             saveUsersToLocalStorage();
             refreshUserTable();
+
+            // Padam daripada Firebase
+            usersRef.child(deletedUserId).remove();
         }
     }
 
@@ -1130,6 +1180,8 @@
         var fileLinkVal = document.getElementById('file_link').value || "https://www.google.com";
         var colorVal = document.getElementById('pin_color').value;
 
+        var targetData = null;
+
         if (editId) {
             var inst = institutesList.find(function(i) { return i.id === editId; });
             if (inst) {
@@ -1139,11 +1191,12 @@
                 inst.lng = lngVal;
                 inst.pautan_fail = fileLinkVal;
                 inst.color = colorVal;
+                targetData = inst;
             }
             alert("Institute details updated successfully!");
         } else {
             var newId = "inst_" + new Date().getTime();
-            var newData = {
+            targetData = {
                 id: newId,
                 nama: nameVal,
                 alamat: addressVal,
@@ -1152,7 +1205,7 @@
                 pautan_fail: fileLinkVal,
                 color: colorVal
             };
-            institutesList.push(newData);
+            institutesList.push(targetData);
             alert("New institute added successfully!");
         }
 
@@ -1160,6 +1213,11 @@
         renderAllMarkers();
         resetLocationForm();
         refreshAdminTable();
+
+        // Segerak terus ke Firebase Realtime Database
+        if (targetData) {
+            institutesRef.child(targetData.id).set(targetData);
+        }
     }
 
     function changePinColorAdmin(id, newColor) {
@@ -1168,6 +1226,9 @@
             item.color = newColor;
             markerObjects[id].setIcon(icons[newColor]);
             saveToLocalStorage();
+
+            // Kemas kini ke Firebase
+            institutesRef.child(id).update({ color: newColor });
         }
     }
 
@@ -1180,6 +1241,9 @@
             if (document.getElementById('edit_id').value === id) {
                 resetLocationForm();
             }
+
+            // Padam daripada Firebase
+            institutesRef.child(id).remove();
         }
     }
 
@@ -1191,7 +1255,6 @@
         var autocompleteBox = document.getElementById('autocompleteList');
         var clearBtn = document.getElementById('btnClearSearch');
         
-        // Show or hide clear button
         clearBtn.style.display = (searchInput.value.length > 0) ? 'block' : 'none';
 
         clusterGroup.clearLayers();
